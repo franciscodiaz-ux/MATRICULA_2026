@@ -38,7 +38,16 @@
  * - etc
  *
  *
- * 3. Setup por hoja
+ * 3. Autodetección de columnas por encabezado
+ * ------------------------------------------------------------
+ * Funciones que detectan tipos de columnas según el nombre
+ * del encabezado.
+ *
+ * La autodetección solo debe ejecutarse dentro del setup
+ * explícito de una hoja. No debe recorrer todas las hojas.
+ *
+ *
+ * 4. Setup por hoja
  * ------------------------------------------------------------
  * Cada hoja del sistema tendrá su propia función de setup.
  *
@@ -47,20 +56,16 @@
  * - aplican el formato base de hoja;
  * - llaman únicamente a las configuraciones necesarias
  *   para esa hoja;
+ * - pueden usar autodetección de encabezados;
  * - jamás deben modificar hojas no definidas explícitamente.
  *
- * Ejemplos:
+ * Ejemplo:
  *
  * setupHojaAlumnos()
+ *    ├── configurarDocumentoFormatoChile()
  *    ├── configurarHojaBaseChile_()
- *    ├── configurarColumnaRut()
- *    ├── configurarColumnaDV()
- *    ├── configurarColumnaFechaChile()
- *    └── etc
- *
- * setupHojaCursos()
- *    ├── configurarHojaBaseChile_()
- *    └── columnas específicas
+ *    ├── configurarColumnasAutomaticasPorEncabezado()
+ *    └── configuraciones manuales especiales si se requieren
  *
  *
  * ============================================================
@@ -77,59 +82,15 @@
  * - Las funciones de setup por hoja deciden qué columnas
  *   configurar.
  *
+ * - Los teléfonos y celulares solo se configuran como texto
+ *   en este archivo. Su limpieza o normalización corresponde
+ *   a 02_Formatos.gs.
+ *
  * - No utilizar SpreadsheetApp.getUi() en funciones internas
  *   o reutilizables.
  *
  * - Toda nueva función debe incluir encabezado descriptivo.
  *
- */
-
-
-/**
- * Archivo: 00_Setup.gs
- * ----------------------------------------------------
- * Configuración inicial del sistema MATRICULA_2026.
- *
- * Este archivo contiene funciones de configuración general
- * del documento y funciones reutilizables para preparar hojas
- * bajo criterios de formato chileno.
- *
- * ============================================================
- * ESTRUCTURA GENERAL DEL ARCHIVO
- * ============================================================
- *
- * 1. Configuración general Chile
- * ------------------------------------------------------------
- * - locale Chile
- * - timezone America/Santiago
- * - formatos base
- * - estilos visuales generales
- *
- * 2. Configuración por columnas
- * ------------------------------------------------------------
- * Funciones reutilizables para configurar columnas específicas
- * según su tipo de dato.
- *
- * 3. Autodetección de columnas por encabezado
- * ------------------------------------------------------------
- * Funciones que detectan tipos de columnas según el nombre
- * del encabezado. Solo se ejecutan dentro del setup explícito
- * de una hoja.
- *
- * 4. Setup por hoja
- * ------------------------------------------------------------
- * Cada hoja del sistema tendrá su propia función de setup.
- *
- * ============================================================
- * REGLAS IMPORTANTES DEL PROYECTO
- * ============================================================
- *
- * - Ninguna función debe recorrer todas las hojas automáticamente.
- * - Una hoja solo puede ser configurada si fue indicada explícitamente.
- * - Las funciones de columnas son herramientas reutilizables.
- * - Las funciones de setup por hoja deciden qué columnas configurar.
- * - No utilizar SpreadsheetApp.getUi() en funciones internas.
- * - Toda nueva función debe incluir encabezado descriptivo.
  */
 
 
@@ -141,7 +102,7 @@
  * Configura el documento completo bajo criterios generales chilenos.
  *
  * Aplica configuración regional chilena y zona horaria de Santiago.
- * Esta función afecta al documento completo, pero NO modifica hojas,
+ * Esta función afecta al documento completo, pero no modifica hojas,
  * columnas ni datos.
  */
 function configurarDocumentoFormatoChile() {
@@ -391,6 +352,7 @@ function configurarColumnaDV(nombreHoja, nombreColumna) {
  * Configura una columna como teléfono chileno.
  *
  * Se mantiene como texto para evitar pérdida de dígitos.
+ * La limpieza y normalización del número corresponde a 02_Formatos.gs.
  *
  * @param {string} nombreHoja Nombre de la hoja.
  * @param {string} nombreColumna Nombre exacto del encabezado.
@@ -403,6 +365,7 @@ function configurarColumnaTelefonoChile(nombreHoja, nombreColumna) {
  * Configura una columna como celular chileno.
  *
  * Se mantiene como texto para evitar pérdida de dígitos.
+ * La limpieza y normalización del número corresponde a 02_Formatos.gs.
  *
  * @param {string} nombreHoja Nombre de la hoja.
  * @param {string} nombreColumna Nombre exacto del encabezado.
@@ -452,7 +415,6 @@ function configurarColumnaMonedaCLP(nombreHoja, nombreColumna) {
 function configurarColumnaCorreo(nombreHoja, nombreColumna) {
   configurarColumnaTexto(nombreHoja, nombreColumna);
 }
-
 
 // ============================================================
 // 3. AUTODETECCIÓN DE COLUMNAS POR ENCABEZADO
@@ -520,6 +482,10 @@ function esEncabezadoDV_(encabezado) {
  * - TELEFONO
  * - TEL
  *
+ * Nota:
+ * En 00_Setup.gs solo se configura como texto.
+ * La limpieza del número queda para 02_Formatos.gs.
+ *
  * @param {string} encabezado Encabezado normalizado.
  * @return {boolean} Verdadero si corresponde a teléfono.
  */
@@ -538,6 +504,10 @@ function esEncabezadoTelefono_(encabezado) {
  * - CEL
  * - CELULAR
  * - MOVIL
+ *
+ * Nota:
+ * En 00_Setup.gs solo se configura como texto.
+ * La limpieza del número queda para 02_Formatos.gs.
  *
  * @param {string} encabezado Encabezado normalizado.
  * @return {boolean} Verdadero si corresponde a celular.
@@ -617,9 +587,71 @@ function esEncabezadoMoneda_(encabezado) {
 }
 
 /**
+ * Configura automáticamente una columna según su encabezado.
+ *
+ * Esta función recibe una hoja, un encabezado ya normalizado y el número
+ * de columna correspondiente. Evalúa el encabezado contra los detectores
+ * definidos en esta sección y aplica el formato adecuado.
+ *
+ * Devuelve true si aplicó alguna configuración, o false si no reconoció
+ * el encabezado.
+ *
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} hoja Hoja a configurar.
+ * @param {string} nombreHoja Nombre exacto de la hoja.
+ * @param {string} encabezado Encabezado normalizado.
+ * @param {number} columna Número de columna.
+ * @return {boolean} Verdadero si configuró la columna.
+ */
+function configurarColumnaDetectadaPorEncabezado_(hoja, nombreHoja, encabezado, columna) {
+  if (esEncabezadoRut_(encabezado)) {
+    configurarColumnaTextoPorNumero_(hoja, columna);
+    Logger.log(`Autodetectado RUT: ${nombreHoja}.${encabezado}`);
+    return true;
+  }
+
+  if (esEncabezadoDV_(encabezado)) {
+    configurarColumnaTextoPorNumero_(hoja, columna);
+    Logger.log(`Autodetectado DV: ${nombreHoja}.${encabezado}`);
+    return true;
+  }
+
+  if (esEncabezadoCelular_(encabezado)) {
+    configurarColumnaTextoPorNumero_(hoja, columna);
+    Logger.log(`Autodetectado CELULAR: ${nombreHoja}.${encabezado}`);
+    return true;
+  }
+
+  if (esEncabezadoTelefono_(encabezado)) {
+    configurarColumnaTextoPorNumero_(hoja, columna);
+    Logger.log(`Autodetectado TELEFONO: ${nombreHoja}.${encabezado}`);
+    return true;
+  }
+
+  if (esEncabezadoCorreo_(encabezado)) {
+    configurarColumnaTextoPorNumero_(hoja, columna);
+    Logger.log(`Autodetectado CORREO: ${nombreHoja}.${encabezado}`);
+    return true;
+  }
+
+  if (esEncabezadoFecha_(encabezado)) {
+    configurarColumnaFechaPorNumero_(hoja, columna);
+    Logger.log(`Autodetectado FECHA: ${nombreHoja}.${encabezado}`);
+    return true;
+  }
+
+  if (esEncabezadoMoneda_(encabezado)) {
+    configurarColumnaMonedaPorNumero_(hoja, columna);
+    Logger.log(`Autodetectado MONEDA: ${nombreHoja}.${encabezado}`);
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Configura automáticamente columnas según el nombre de sus encabezados.
  *
- * Esta función recorre SOLO las columnas de la hoja indicada explícitamente.
+ * Esta función recorre solo las columnas de la hoja indicada explícitamente.
  * No recorre todas las hojas del documento.
  *
  * La función detecta tipos comunes:
@@ -654,47 +686,12 @@ function configurarColumnasAutomaticasPorEncabezado(nombreHoja) {
 
     if (!encabezado) return;
 
-    if (esEncabezadoRut_(encabezado)) {
-      configurarColumnaTextoPorNumero_(hoja, columna);
-      Logger.log(`Autodetectado RUT: ${nombreHoja}.${encabezado}`);
-      return;
-    }
-
-    if (esEncabezadoDV_(encabezado)) {
-      configurarColumnaTextoPorNumero_(hoja, columna);
-      Logger.log(`Autodetectado DV: ${nombreHoja}.${encabezado}`);
-      return;
-    }
-
-    if (esEncabezadoCelular_(encabezado)) {
-      configurarColumnaTextoPorNumero_(hoja, columna);
-      Logger.log(`Autodetectado CELULAR: ${nombreHoja}.${encabezado}`);
-      return;
-    }
-
-    if (esEncabezadoTelefono_(encabezado)) {
-      configurarColumnaTextoPorNumero_(hoja, columna);
-      Logger.log(`Autodetectado TELEFONO: ${nombreHoja}.${encabezado}`);
-      return;
-    }
-
-    if (esEncabezadoCorreo_(encabezado)) {
-      configurarColumnaTextoPorNumero_(hoja, columna);
-      Logger.log(`Autodetectado CORREO: ${nombreHoja}.${encabezado}`);
-      return;
-    }
-
-    if (esEncabezadoFecha_(encabezado)) {
-      configurarColumnaFechaPorNumero_(hoja, columna);
-      Logger.log(`Autodetectado FECHA: ${nombreHoja}.${encabezado}`);
-      return;
-    }
-
-    if (esEncabezadoMoneda_(encabezado)) {
-      configurarColumnaMonedaPorNumero_(hoja, columna);
-      Logger.log(`Autodetectado MONEDA: ${nombreHoja}.${encabezado}`);
-      return;
-    }
+    configurarColumnaDetectadaPorEncabezado_(
+      hoja,
+      nombreHoja,
+      encabezado,
+      columna
+    );
   });
 
   Logger.log(`Autodetección de columnas completada para hoja: ${nombreHoja}`);
@@ -714,8 +711,12 @@ function configurarColumnasAutomaticasPorEncabezado(nombreHoja) {
  * Aplica:
  * - configuración general del documento;
  * - formato base de la hoja;
- * - autodetección de columnas según encabezado;
- * - configuraciones manuales especiales si se requieren.
+ * - autodetección de columnas según encabezado.
+ *
+ * El comportamiento vivo de la hoja Alumnos, como respuestas a edición,
+ * validaciones al escribir y normalizaciones de datos ingresados, debe
+ * implementarse en 04_Alumnos.gs usando funciones reutilizables de
+ * 02_Formatos.gs y 03_Validaciones.gs.
  */
 function setupHojaAlumnos() {
   configurarDocumentoFormatoChile();
@@ -728,4 +729,3 @@ function setupHojaAlumnos() {
 
   Logger.log(`Setup completado para hoja: ${nombreHoja}`);
 }
-
