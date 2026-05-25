@@ -701,6 +701,33 @@ function configurarColumnasAutomaticasPorEncabezado(nombreHoja) {
 // ============================================================
 // 4. SETUP POR HOJA
 // ============================================================
+/**
+ * Configura la hoja Test para pruebas.
+ *
+ * Esta función es el punto de entrada explícito para preparar
+ * la hoja test. Solo modifica esta hoja.
+ *
+ * Aplica:
+ * - configuración general del documento;
+ * - formato base de la hoja;
+ * - autodetección de columnas según encabezado.
+ *
+ */
+function setupHojaTest() {
+  configurarDocumentoFormatoChile();
+
+  const nombreHoja = "Test";
+  const hoja = obtenerHojaObligatoria_(nombreHoja);
+
+  configurarHojaBaseChile_(hoja);
+  configurarColumnasAutomaticasPorEncabezado(nombreHoja);
+
+  Logger.log(`Setup completado para hoja: ${nombreHoja}`);
+}
+
+
+
+
 
 /**
  * Configura la hoja Alumnos.

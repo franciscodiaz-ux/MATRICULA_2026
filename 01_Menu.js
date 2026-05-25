@@ -4,6 +4,7 @@
  */
 function onOpen() {
   crearMenuPrincipal();
+  crearMenuTest_();
 }
 
 /**
