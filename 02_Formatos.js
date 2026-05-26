@@ -71,56 +71,32 @@ function formatearDvChile(valor) {
     .substring(0, 1);
 }
 
-
 /**
- * Normaliza un teléfono chileno al formato visual definido
- * para el proyecto:
+ * Formatea visualmente un teléfono chileno ya normalizado o ingresado
+ * directamente por el operador.
  *
- * 56 X XXXX XXXX
+ * Muestra el teléfono como:
+ * +56 X XXXX XXXX
  *
- * Criterio acordado:
- * - El operador puede escribir el teléfono como quiera.
- * - Se eliminan espacios, signos, guiones, paréntesis y símbolos.
- * - Si viene sin 56 y tiene 9 dígitos, se antepone 56.
- * - Si viene con +56, se deja como 56.
- * - Se muestra siempre como 56 X XXXX XXXX.
+ * Esta función NO debe usarse para guardar datos limpios, solo para
+ * presentación visual.
  *
- * Ejemplos:
- * 912345678       -> 56 9 1234 5678
- * +56 9 12345678  -> 56 9 1234 5678
- * 223456789       -> 56 2 2345 6789
- * 342345678       -> 56 3 4234 5678
- *
- * @param {*} valor Valor ingresado en la celda.
- * @return {string} Teléfono formateado o limpio si no alcanza formato esperado.
+ * @param {*} valor Teléfono original o normalizado.
+ * @return {string} Teléfono formateado o vacío si no corresponde.
  */
 function formatearTelefonoChile(valor) {
-  if (valor === null || valor === undefined || valor === "") {
-    return "";
-  }
+  const telefono = normalizarTelefonoChile_(valor);
 
-  let telefono = String(valor).replace(/\D/g, "");
+  if (telefono === "") return "";
 
-  if (telefono === "") {
-    return "";
-  }
-
-  if (!telefono.startsWith("56") && telefono.length === 9) {
-    telefono = "56" + telefono;
-  }
-
-  if (telefono.startsWith("56") && telefono.length === 11) {
-    return (
-      telefono.substring(0, 2) + " " +
-      telefono.substring(2, 3) + " " +
-      telefono.substring(3, 7) + " " +
-      telefono.substring(7, 11)
-    );
-  }
-
-  return telefono;
+  return (
+    "+" +
+    telefono.substring(0, 2) + " " +
+    telefono.substring(2, 3) + " " +
+    telefono.substring(3, 7) + " " +
+    telefono.substring(7, 11)
+  );
 }
-
 
 /**
  * Aplica formato RUT + DV a dos columnas consecutivas.
