@@ -222,36 +222,116 @@ function obtenerHojaObligatoria_(nombreHoja) {
 // ============================================================
 
 /**
+ * Convierte un número de columna a letra de Google Sheets.
+ *
+ * Ejemplos:
+ * - 1  -> A
+ * - 26 -> Z
+ * - 27 -> AA
+ *
+ * Esta función permite construir mapas de columnas más legibles
+ * para diagnósticos, logs y futuras configuraciones por encabezado.
+ *
+ * @param {number} numeroColumna Número de columna, comenzando en 1.
+ * @return {string} Letra equivalente de la columna.
+ */
+function obtenerLetraColumna_(numeroColumna) {
+  let letra = "";
+  let numero = numeroColumna;
+
+  while (numero > 0) {
+    const residuo = (numero - 1) % 26;
+    letra = String.fromCharCode(65 + residuo) + letra;
+    numero = Math.floor((numero - 1) / 26);
+  }
+
+  return letra;
+}
+
+/**
+ * Construye un mapa completo de columnas basado en los encabezados.
+ *
+ * Lee la fila 1 de la hoja recibida y genera un objeto indexado por
+ * encabezado normalizado. Cada entrada contiene:
+ *
+ * - numero: número de columna.
+ * - letra: letra de columna.
+ * - encabezado: encabezado original.
+ * - normalizado: encabezado normalizado.
+ *
+ * Esta función debe considerarse la fuente oficial para resolver
+ * columnas por encabezado dentro del proyecto. Permite que setup,
+ * validaciones, normalizaciones y comportamientos trabajen sobre
+ * nombres de columnas y no sobre posiciones fijas.
+ *
+ * Ejemplo:
+ *
+ * mapa["RUT_AL"] = {
+ *   numero: 2,
+ *   letra: "B",
+ *   encabezado: "RUT_AL",
+ *   normalizado: "RUT_AL"
+ * };
+ *
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} hoja Hoja a analizar.
+ * @return {Object} Mapa de columnas.
+ */
+function obtenerMapaColumnas_(hoja) {
+  const ultimaColumna = hoja.getLastColumn();
+
+  if (ultimaColumna < 1) {
+    return {};
+  }
+
+  const encabezados = hoja
+    .getRange(1, 1, 1, ultimaColumna)
+    .getValues()[0];
+
+  const mapa = {};
+
+  encabezados.forEach((valorEncabezado, indice) => {
+    const encabezadoOriginal = String(valorEncabezado).trim();
+    const encabezadoNormalizado = normalizarEncabezado_(encabezadoOriginal);
+
+    if (!encabezadoNormalizado) return;
+
+    const numeroColumna = indice + 1;
+
+    mapa[encabezadoNormalizado] = {
+      numero: numeroColumna,
+      letra: obtenerLetraColumna_(numeroColumna),
+      encabezado: encabezadoOriginal,
+      normalizado: encabezadoNormalizado
+    };
+  });
+
+  return mapa;
+}
+
+/**
  * Busca el número de columna según el nombre exacto del encabezado.
  *
- * Lee la fila 1 de la hoja y devuelve la posición de la columna
- * cuyo encabezado coincide con el nombre indicado.
+ * Usa el mapa centralizado de columnas para evitar duplicar lógica
+ * de lectura de encabezados. La búsqueda se realiza usando el encabezado
+ * normalizado, manteniendo compatibilidad con espacios y diferencias
+ * menores de escritura.
  *
  * @param {GoogleAppsScript.Spreadsheet.Sheet} hoja Hoja donde buscar.
  * @param {string} nombreColumna Nombre exacto del encabezado.
  * @return {number} Número de columna encontrado.
  */
 function obtenerNumeroColumnaPorEncabezado_(hoja, nombreColumna) {
-  const ultimaColumna = hoja.getLastColumn();
+  const mapaColumnas = obtenerMapaColumnas_(hoja);
+  const encabezadoNormalizado = normalizarEncabezado_(nombreColumna);
+  const columna = mapaColumnas[encabezadoNormalizado];
 
-  if (ultimaColumna < 1) {
-    throw new Error(`La hoja "${hoja.getName()}" no tiene columnas.`);
-  }
-
-  const encabezados = hoja
-    .getRange(1, 1, 1, ultimaColumna)
-    .getValues()[0]
-    .map(valor => String(valor).trim());
-
-  const indice = encabezados.indexOf(nombreColumna);
-
-  if (indice === -1) {
+  if (!columna) {
     throw new Error(
       `No se encontró la columna "${nombreColumna}" en la hoja "${hoja.getName()}".`
     );
   }
 
-  return indice + 1;
+  return columna.numero;
 }
 
 /**
@@ -415,6 +495,7 @@ function configurarColumnaMonedaCLP(nombreHoja, nombreColumna) {
 function configurarColumnaCorreo(nombreHoja, nombreColumna) {
   configurarColumnaTexto(nombreHoja, nombreColumna);
 }
+
 
 // ============================================================
 // 3. AUTODETECCIÓN DE COLUMNAS POR ENCABEZADO
@@ -669,28 +750,20 @@ function configurarColumnaDetectadaPorEncabezado_(hoja, nombreHoja, encabezado, 
  */
 function configurarColumnasAutomaticasPorEncabezado(nombreHoja) {
   const hoja = obtenerHojaObligatoria_(nombreHoja);
-  const ultimaColumna = hoja.getLastColumn();
+  const mapaColumnas = obtenerMapaColumnas_(hoja);
+  const columnas = Object.values(mapaColumnas);
 
-  if (ultimaColumna < 1) {
+  if (columnas.length === 0) {
     Logger.log(`La hoja "${nombreHoja}" no tiene columnas para detectar.`);
     return;
   }
 
-  const encabezados = hoja
-    .getRange(1, 1, 1, ultimaColumna)
-    .getValues()[0];
-
-  encabezados.forEach((valorEncabezado, indice) => {
-    const encabezado = normalizarEncabezado_(valorEncabezado);
-    const columna = indice + 1;
-
-    if (!encabezado) return;
-
+  columnas.forEach(columna => {
     configurarColumnaDetectadaPorEncabezado_(
       hoja,
       nombreHoja,
-      encabezado,
-      columna
+      columna.normalizado,
+      columna.numero
     );
   });
 
@@ -701,9 +774,3 @@ function configurarColumnasAutomaticasPorEncabezado(nombreHoja) {
 // ============================================================
 // 4. SETUP POR HOJA---ver archivos con nombre de hoja
 // ============================================================
-
-
-
-
-
-
