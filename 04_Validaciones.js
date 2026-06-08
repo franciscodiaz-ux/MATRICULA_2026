@@ -1,38 +1,43 @@
 /**
- * Archivo: 02_Validaciones.gs
- * Contiene funciones auxiliares de validación usadas por el sistema de matrícula 2026.
- * Estas funciones pueden ser llamadas desde formularios web, menús, gatillos onEdit
- * o procesos internos de escritura en la hoja principal.
+ * ============================================================
+ * 04_Validaciones.gs
+ * Proyecto: MATRICULA_2026
+ * ------------------------------------------------------------
+ * Este archivo contiene funciones reutilizables para validar
+ * datos ya normalizados o ingresados por el operador.
+ *
+ * La validación no debe formatear visualmente ni modificar la hoja.
+ * Solo debe responder si un dato cumple o no una regla definida.
+ *
+ * Incluye validación de:
+ * - RUT chileno
+ * - Teléfono chileno normalizado
+ * - Correo electrónico básico
+ * ============================================================
  */
 
 
 /**
- * Calcula el dígito verificador (DV) de un RUT chileno.
- * La función recibe el cuerpo del RUT (sin DV) y retorna
- * el dígito verificador correspondiente según el algoritmo módulo 11.
+ * Calcula el dígito verificador de un RUT chileno.
  *
- * Ejemplo:
- * calcularDV("12345678") → "5"
+ * Recibe el cuerpo del RUT, sin puntos ni guion, y retorna el
+ * dígito verificador correspondiente usando módulo 11.
  *
- * @param {string|number} rut Cuerpo del RUT sin puntos ni guión.
- * @returns {string} Dígito verificador calculado ("0"-"9" o "K").
+ * @param {string|number} rut Cuerpo del RUT.
+ * @return {string} Dígito verificador calculado.
  */
 function calcularDV(rut) {
+  rut = String(rut || "").replace(/\D/g, "");
 
-  // Convertir a texto y eliminar caracteres no numéricos
-  rut = String(rut).replace(/\D/g, '');
+  if (rut === "") return "";
 
   let suma = 0;
   let multiplicador = 2;
 
-  // Recorrer el RUT desde derecha a izquierda
   for (let i = rut.length - 1; i >= 0; i--) {
-
     suma += parseInt(rut[i], 10) * multiplicador;
-
     multiplicador++;
 
-    // Los multiplicadores van de 2 a 7
     if (multiplicador > 7) {
       multiplicador = 2;
     }
@@ -40,15 +45,74 @@ function calcularDV(rut) {
 
   const resto = 11 - (suma % 11);
 
-  // Casos especiales
-  if (resto === 11) {
-    return '0';
-  }
-
-  if (resto === 10) {
-    return 'K';
-  }
+  if (resto === 11) return "0";
+  if (resto === 10) return "K";
 
   return String(resto);
 }
 
+
+/**
+ * Valida un RUT chileno completo.
+ *
+ * Acepta formatos como:
+ * - 23761825-K
+ * - 23.761.825-K
+ * - 23761825K
+ *
+ * Usa normalizarRutCompleto_() desde 03_Normalizaciones.gs.
+ *
+ * @param {*} valor RUT completo ingresado.
+ * @return {boolean} true si el RUT es válido.
+ */
+function validarRutCompletoChile(valor) {
+  const rutNormalizado = normalizarRutCompleto_(valor);
+
+  if (rutNormalizado === "") return false;
+  if (!rutNormalizado.includes("-")) return false;
+
+  const partes = rutNormalizado.split("-");
+  const cuerpo = partes[0];
+  const dv = partes[1];
+
+  if (!/^\d{7,8}$/.test(cuerpo)) return false;
+  if (!/^[0-9K]$/.test(dv)) return false;
+
+  return calcularDV(cuerpo) === dv;
+}
+
+
+/**
+ * Valida un teléfono chileno según el criterio interno del proyecto.
+ *
+ * El teléfono válido debe poder normalizarse como:
+ * 56XXXXXXXXX
+ *
+ * No intenta determinar si es celular, Santiago o región.
+ *
+ * Usa normalizarTelefonoChile_() desde 03_Normalizaciones.gs.
+ *
+ * @param {*} valor Teléfono ingresado.
+ * @return {boolean} true si el teléfono queda válido.
+ */
+function validarTelefonoChile(valor) {
+  const telefono = normalizarTelefonoChile_(valor);
+
+  return /^56\d{9}$/.test(telefono);
+}
+
+
+/**
+ * Valida un correo electrónico con una regla básica.
+ *
+ * Usa normalizarCorreo_() desde 03_Normalizaciones.gs.
+ * No verifica si el correo existe realmente.
+ *
+ * @param {*} valor Correo ingresado.
+ * @return {boolean} true si tiene estructura básica válida.
+ */
+function validarCorreo(valor) {
+  const correo = normalizarCorreo_(valor);
+
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
+}
